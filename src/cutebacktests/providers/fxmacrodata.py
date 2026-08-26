@@ -12,7 +12,7 @@ class FXMacroDataProvider:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        base_url: str = "https://fxmacrodata.com/api/v1",
+        base_url: str = "https://api.fxmacrodata.com/v1",
         timeout: int = 30,
         session: Optional[requests.Session] = None,
     ) -> None:
