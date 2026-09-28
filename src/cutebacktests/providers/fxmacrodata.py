@@ -29,8 +29,9 @@ class FXMacroDataProvider:
         top_tier_only: bool = False,
     ) -> List[Dict[str, Any]]:
         params: Dict[str, Any] = {}
+        headers = {"Accept": "application/json"}
         if self.api_key:
-            params["api_key"] = self.api_key
+            headers["X-API-Key"] = self.api_key
         if start_date:
             params["start_date"] = start_date
         if end_date:
@@ -38,7 +39,7 @@ class FXMacroDataProvider:
         response = self._session.get(
             f"{self.base_url}/calendar/{currency.lower()}",
             params=params,
-            headers={"Accept": "application/json"},
+            headers=headers,
             timeout=self.timeout,
         )
         response.raise_for_status()
