@@ -16,7 +16,9 @@ class FXMacroDataProvider:
         timeout: int = 30,
         session: Optional[requests.Session] = None,
     ) -> None:
-        self.api_key = api_key
+        self.api_key = (api_key or "").strip() or None
+        if self.api_key and any(ch.isspace() for ch in self.api_key):
+            raise ValueError("FXMacroData api_key must not contain whitespace")
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._session = session or requests.Session()
@@ -36,14 +38,27 @@ class FXMacroDataProvider:
             params["start_date"] = start_date
         if end_date:
             params["end_date"] = end_date
+        url = f"{self.base_url}/calendar/{currency.lower()}"
+        # Redirects are not followed so the key header is never replayed to another host.
         response = self._session.get(
-            f"{self.base_url}/calendar/{currency.lower()}",
+            url,
             params=params,
             headers=headers,
             timeout=self.timeout,
+            allow_redirects=False,
         )
+        if response.is_redirect:
+            raise RuntimeError(f"FXMacroData returned an unexpected redirect (HTTP {response.status_code}) for {url}")
         response.raise_for_status()
-        rows = list((response.json() or {}).get("data") or [])
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RuntimeError(f"FXMacroData returned a non-JSON response for {url}") from exc
+        data = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(data, list):
+            detail = payload.get("detail") if isinstance(payload, dict) else None
+            raise RuntimeError(f"FXMacroData returned an unexpected response for {url}" + (f": {detail}" if detail else ""))
+        rows = [row for row in data if isinstance(row, dict)]
         if top_tier_only:
             rows = [row for row in rows if row.get("top_tier_for_currency") or row.get("market_tier") == 1]
         return rows
